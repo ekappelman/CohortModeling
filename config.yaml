@@ -1,0 +1,10 @@
+title: Missoula Cohort Model
+author: Erik Kappleman
+version: 1.0
+settings:
+  deathDir: DeathData\Deaths.csv
+  state: Montana
+  county: Missoula
+  year1: 2014
+  year2: 2019
+  year3: 2024
