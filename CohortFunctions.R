@@ -4,6 +4,16 @@ death <- function(population,deathrates){
   return(round(population/1000*deathrates,0))
 }
 
+##Finds periods deaths
+birth <- function(population,birthrates){
+  temp <- merge(population[population$Sex=="Female",],birthrates,by.x="Cohort",by.y="Maternal Cohort")
+  temp$births <- (temp$estimate/1000)*temp$Rate
+  births <- aggregate(temp$births,by=list(temp$`Infant Sex`),FUN=sum)
+  colnames(births)<- c("Sex","Total Birth")
+  births$`Total Birth` <- round(births$`Total Birth`,0)
+  return(births)
+}
+
 ##Finds period migration
 migration <- function(population,mig,rates=TRUE){
   if(length(population)!=length(mig.rates)){
@@ -17,11 +27,24 @@ migration <- function(population,mig,rates=TRUE){
 }
 
 ##Single sex promortion function
-promotion <- function(births,deaths,migration,existing){
-  promotion <- c(births,existing[1:16],sum(existing[17:18]))
-  newGen <- promotion-deaths+migration
+promotion <- function(birthRates,deathRates,migrationRates,existing){
+  deaths <- death(existing,deathRates)
+  births <- birth(existing,birthRates)
+  migration <- migration(existing,migrationRates)
+  males <- existing[existing$Sex=="Male",]
+  females <- existing[existing$Sex=="Feale",]
+  
+  Mpromotion <- c(births$Sex=="Male",males$estimate[1:16],sum(males$estimate[17:18]))
+  MnewGen <- Mpromotion-deaths[deaths$Sex=="Male",]+migration[]
   rm(promotion)
   return(newGen)
+}
+
+##Single sex promortion function
+findMigration <- function(births,deaths,start,end){
+  promotion <- c(births,start[1:16],sum(start[17:18]))
+  migration <- end-(promotion-deaths)
+  return(migration/(start/1000))
 }
 
 ##Download and organize ACS age-sex cohort data
@@ -83,3 +106,46 @@ deathRates <- function(state,county,years,deathPath){
   Averages <- Averages[order(Averages$Sex),]
   return(Averages)
 }
+
+birthRates <- function(state,county,years,birthPath){
+  ACSData <- getACSYears(state,county,years)
+  births <- read.csv(birthPath)
+  dat <- merge(births,ACSData[ACSData$Sex=="Female",],by=c("Cohort","Year"))
+  dat$PeriodRate <- dat$Births/(dat$estimate/1000)
+  rates <- aggregate(dat$PeriodRate,by=list(dat$Cohort,dat$Sex.x),FUN=mean)
+  colnames(rates)<- c("Maternal Cohort","Infant Sex","Rate")
+  return(rates)
+}
+
+migrationRates <- function(state,county,years,birthDir,deathDir){
+  ACSData <- getACSYears(state,county,years)
+  births <- read.csv(birthDir)
+  totals <- aggregate(births$Births,by=list(births$Sex,births$Year),FUN=sum)
+  colnames(totals) <- c("Sex","Year","Births")
+  Deaths <- read.csv(deathDir)
+  migMale1 <- findMigration(births=totals[totals$Sex=="Male"&totals$Year==years[2],"Births"],
+                deaths=Deaths[Deaths$Sex=="Male"&Deaths$Year==years[2],"Deaths"],
+                start=ACSData[ACSData$Sex=="Male"&ACSData$Year==years[1],"estimate"],
+                end=ACSData[ACSData$Sex=="Male"&ACSData$Year==years[2],"estimate"])
+  migMale2 <- findMigration(births=totals[totals$Sex=="Male"&totals$Year==years[3],"Births"],
+                            deaths=Deaths[Deaths$Sex=="Male"&Deaths$Year==years[3],"Deaths"],
+                            start=ACSData[ACSData$Sex=="Male"&ACSData$Year==years[2],"estimate"],
+                            end=ACSData[ACSData$Sex=="Male"&ACSData$Year==years[3],"estimate"])
+  maleMig <- data.frame(Migration=rowMeans(cbind(migMale1,migMale2)),Sex="Male",
+                          Cohort=(ACSData$Cohort[1:18]))
+  migFemale1 <- findMigration(births=totals[totals$Sex=="Female"&totals$Year==years[2],"Births"],
+                            deaths=Deaths[Deaths$Sex=="Female"&Deaths$Year==years[2],"Deaths"],
+                            start=ACSData[ACSData$Sex=="Female"&ACSData$Year==years[1],"estimate"],
+                            end=ACSData[ACSData$Sex=="Female"&ACSData$Year==years[2],"estimate"])
+  migFemale2 <- findMigration(births=totals[totals$Sex=="Female"&totals$Year==years[3],"Births"],
+                            deaths=Deaths[Deaths$Sex=="Female"&Deaths$Year==years[3],"Deaths"],
+                            start=ACSData[ACSData$Sex=="Female"&ACSData$Year==years[2],"estimate"],
+                            end=ACSData[ACSData$Sex=="Female"&ACSData$Year==years[3],"estimate"])
+  femaleMig <- data.frame(Migration=rowMeans(cbind(migFemale1,migFemale2)),Sex="Female",
+                          Cohort=(ACSData$Cohort[1:18]))
+  migration <- rbind(maleMig,femaleMig)
+  return(migration)  
+}
+
+
+
