@@ -35,7 +35,7 @@ promotion <- function(birthRates,deathRates,migrationRates,existing){
   females <- existing[existing$Sex=="Feale",]
   
   Mpromotion <- c(births$Sex=="Male",males$estimate[1:16],sum(males$estimate[17:18]))
-  MnewGen <- Mpromotion-deaths[deaths$Sex=="Male",]+migration[]
+  MnewGen <- Mpromotion-deaths[deaths$Sex=="Male",]+migration[,]
   rm(promotion)
   return(newGen)
 }
