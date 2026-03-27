@@ -8,14 +8,18 @@ deathDir <- config$settings$deathDir
 birthDir <- config$settings$birthDir
 
 ACSData <- getACSYears(state,county,years)
-
 drates <- deathRates(ACSData,deathDir)
 brates <- birthRates(ACSData,birthDir)
 mrates <- migrationRates(ACSData,birthDir,deathDir)
 
-base_pop = getAgeSex(state,county,year=2022)
+base_pop = getAgeSex(state,county,year=config$settings$ACSbaseyear)
 
-births <- birth(population = base_pop,birthrates=brates)
-deaths <- death(population=base_pop,deathrates=drates)
-migrations <- migration(population = base_pop,mig = mrates)
-promotion(births=births,deaths=deaths,migration=migrations,existing=base_pop)
+results <- cohort_model(
+  name=config$title,
+  brates = brates,
+  drates = drates,
+  mrates = mrates,
+  BASE = base_pop,
+  START_YEAR = config$settings$startYear,
+  END_YEAR = config$settings$endYear
+)

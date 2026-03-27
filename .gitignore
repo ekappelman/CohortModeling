@@ -3,5 +3,6 @@
 .RData
 .Ruserdata
 Data/
+Output/
 CohortAlgo.Rproj
 ACSVariableNames.RData

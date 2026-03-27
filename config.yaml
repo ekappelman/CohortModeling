@@ -9,3 +9,6 @@ settings:
   year1: 2014
   year2: 2019
   year3: 2024
+  startYear: 2020
+  endYear: 2120
+  ACSbaseyear: 2022
