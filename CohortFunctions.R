@@ -1,7 +1,10 @@
 
 ##Finds periods deaths
 death <- function(population,deathrates){
-  return(round(population/1000*deathrates,0))
+  df <- merge(population,deathrates)
+  df$Deaths <- round((df$estimate/1000)*df$DeathRatePer1000,0)
+  df <- df[c("Sex","Cohort","Deaths")]
+  return(df)
 }
 
 ##Finds periods deaths
@@ -16,27 +19,41 @@ birth <- function(population,birthrates){
 
 ##Finds period migration
 migration <- function(population,mig,rates=TRUE){
-  if(length(population)!=length(mig.rates)){
-    return("Population vector and migration rates vectors are different lengths")
-  }
   if(rates){
-    return(round(population*mig,0))
+    df <- merge(population,mig)
+    df$Migrations <- round((df$estimate/1000)*df$Migration,0)
+    df <- df[,c("Cohort","Sex","Migrations")]
+    return(df)
   }else{
-    return(mig)
+    df <- merge(population,mig)
+    df$Migrations <- round(df$Migration,0)
+    df <- df[,c("Cohort","Sex","Migrations")]
+    return(df)
   }
 }
-
 ##Single sex promortion function
-promotion <- function(birthRates,deathRates,migrationRates,existing){
-  deaths <- death(existing,deathRates)
-  births <- birth(existing,birthRates)
-  migration <- migration(existing,migrationRates)
-  males <- existing[existing$Sex=="Male",]
-  females <- existing[existing$Sex=="Feale",]
+promotion <- function(births,deaths,migration,existing){
+  dat <- merge(merge(deaths,migration),existing)
+  dat <- dat[,c("Sex","Cohort","Deaths","Migrations","estimate")]
+  dat$Cohort <- factor(dat$Cohort,levels=c("Under 5","5-9 years","10-14 years",
+                "15-19 years","20-24 years","25-29 years","30-34 years","35-39 years",
+                "40-44 years","45-49 years","50-54 years","55-59 years","60-64 years",
+                "65-69 years","70-74 years","75-79 years","80-84 years","Over 85"))
   
-  Mpromotion <- c(births$Sex=="Male",males$estimate[1:16],sum(males$estimate[17:18]))
-  MnewGen <- Mpromotion-deaths[deaths$Sex=="Male",]+migration[,]
-  rm(promotion)
+  males <- dat[dat$Sex=="Male",]
+  females <- dat[dat$Sex=="Female",]
+  
+  males <- males[order(males$Cohort),]
+  females <- females[order(females$Cohort),]
+  
+  males$promotion <- c(births$`Total Birth`[births$Sex=="Male"],males$estimate[1:16],sum(males$estimate[17:18]))
+  males$newGen <- males$promotion-males$Deaths+males$Migrations
+  
+  females$promotion <- c(births$`Total Birth`[births$Sex=="Female"],females$estimate[1:16],sum(females$estimate[17:18]))
+  females$newGen <- females$promotion-females$Deaths+females$Migration
+  
+  newGen <- rbind(males,females)
+
   return(newGen)
 }
 
@@ -87,8 +104,7 @@ getACSYears <- function(state,county,years){
 }
 
 ##Find age-sex specific death rates based on three years of ACS data and deaths
-deathRates <- function(state,county,years,deathPath){
-  ACSData <- getACSYears(state,county,years)
+deathRates <- function(ACSData,deathPath){
   Deaths <- read.csv(deathPath)
   print("Calculating death rates")
   ACSDeaths <- merge(ACSData,Deaths)
@@ -107,8 +123,7 @@ deathRates <- function(state,county,years,deathPath){
   return(Averages)
 }
 
-birthRates <- function(state,county,years,birthPath){
-  ACSData <- getACSYears(state,county,years)
+birthRates <- function(ACSData,birthPath){
   births <- read.csv(birthPath)
   dat <- merge(births,ACSData[ACSData$Sex=="Female",],by=c("Cohort","Year"))
   dat$PeriodRate <- dat$Births/(dat$estimate/1000)
@@ -117,8 +132,7 @@ birthRates <- function(state,county,years,birthPath){
   return(rates)
 }
 
-migrationRates <- function(state,county,years,birthDir,deathDir){
-  ACSData <- getACSYears(state,county,years)
+migrationRates <- function(ACSData,birthDir,deathDir){
   births <- read.csv(birthDir)
   totals <- aggregate(births$Births,by=list(births$Sex,births$Year),FUN=sum)
   colnames(totals) <- c("Sex","Year","Births")

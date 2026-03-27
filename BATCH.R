@@ -7,10 +7,15 @@ years <- c(config$settings$year1,config$settings$year2,config$settings$year3)
 deathDir <- config$settings$deathDir
 birthDir <- config$settings$birthDir
 
-drates <- deathRates(state,county,years,deathDir)
-brates <- birthRates(state,county,years,birthDir)
-mrates <- migrationRates(state,county,years,birthDir,deathDir)
+ACSData <- getACSYears(state,county,years)
 
-birth(population = getAgeSex(state,county,year=2019),birthrates = brates)
+drates <- deathRates(ACSData,deathDir)
+brates <- birthRates(ACSData,birthDir)
+mrates <- migrationRates(ACSData,birthDir,deathDir)
 
-promotion()
+base_pop = getAgeSex(state,county,year=2022)
+
+births <- birth(population = base_pop,birthrates=brates)
+deaths <- death(population=base_pop,deathrates=drates)
+migrations <- migration(population = base_pop,mig = mrates)
+promotion(births=births,deaths=deaths,migration=migrations,existing=base_pop)
